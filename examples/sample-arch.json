@@ -1,0 +1,310 @@
+{
+  "project": "Acme Docs",
+  "tagline": "A worked EXAMPLE arch.json. Five containers, a self-hosted embedding model and a hosted LLM, behind JWT. Every field this skill supports appears somewhere below.",
+  "source_of_truth": "example only — in a real run this reads 'docker-compose.yml, api/config.py, api/ai/* @ <commit>'",
+
+  "tiers": [
+    {"id": "client",   "label": "Client",      "color": "violet"},
+    {"id": "delivery", "label": "Delivery",    "color": "cyan"},
+    {"id": "app",      "label": "Application", "color": "green"},
+    {"id": "data",     "label": "Data & AI",   "color": "amber"}
+  ],
+
+  "nodes": [
+    {"id": "browser", "tier": "client", "name": "User's browser", "tech": "React 18 SPA",
+     "shape": "actor", "icon": "🧑‍💻", "role": "Single-page app; holds the JWT in localStorage.",
+     "kv": {"Talks_to": "web:8080 only", "Auth": "Bearer JWT on every /api call"},
+     "chips": ["vite build"], "src": "web/src/main.tsx:1"},
+
+    {"id": "web", "tier": "delivery", "name": "Web · nginx", "tech": "nginx:1.25-alpine", "port": "8080",
+     "shape": "box", "icon": "🌐", "role": "Serves the built SPA and reverse-proxies /api to the API.",
+     "kv": {"Image": "nginx:1.25-alpine", "Serves": "/usr/share/nginx/html (build artifact)",
+            "Proxies": "/api → api:8000"},
+     "chips": ["compose: web", "no TLS here — terminate upstream"], "src": "docker-compose.yml:12"},
+
+    {"id": "api", "tier": "app", "name": "API · FastAPI", "tech": "uvicorn, 4 workers", "port": "8000",
+     "shape": "box", "icon": "⚙️", "role": "All business logic, auth, and every model call.",
+     "kv": {"Image": "acme/api:1.4", "Workers": "4 (UVICORN_WORKERS)", "Depends": "db, redis"},
+     "chips": ["compose: api"], "src": "docker-compose.yml:20"},
+
+    {"id": "worker", "tier": "app", "name": "Worker · Celery", "tech": "celery -c 2",
+     "shape": "box", "icon": "🔧", "role": "Runs ingestion and re-indexing off the request path.",
+     "kv": {"Image": "acme/api:1.4 (same image)", "Queues": "ingest, reindex"},
+     "chips": ["compose: worker"], "src": "docker-compose.yml:33"},
+
+    {"id": "db", "tier": "data", "name": "PostgreSQL", "tech": "postgres:16", "port": "5432",
+     "shape": "db", "icon": "🗄️", "role": "Users, documents, conversations, audit log.",
+     "kv": {"Image": "postgres:16", "Volume": "pgdata:/var/lib/postgresql/data"},
+     "chips": ["compose: db"], "src": "docker-compose.yml:41"},
+
+    {"id": "redis", "tier": "data", "name": "Redis", "tech": "redis:7-alpine", "port": "6379",
+     "shape": "queue", "icon": "⚡", "role": "Celery broker + short-lived response cache.",
+     "kv": {"Image": "redis:7-alpine", "Persistence": "none — cache only, safe to lose"},
+     "chips": ["compose: redis"], "src": "docker-compose.yml:52"},
+
+    {"id": "qdrant", "tier": "data", "name": "Qdrant", "tech": "qdrant:v1.9", "port": "6333",
+     "shape": "store", "icon": "🧭", "role": "Vector store for document chunks.",
+     "kv": {"Image": "qdrant/qdrant:v1.9", "Collection": "doc_chunks (768-d, cosine)",
+            "Volume": "qdrant_data:/qdrant/storage"},
+     "chips": ["compose: qdrant"], "src": "docker-compose.yml:60"},
+
+    {"id": "embed", "tier": "data", "name": "Embeddings · TEI", "tech": "bge-base-en-v1.5", "port": "8081",
+     "shape": "model", "icon": "🧮", "role": "Self-hosted embedding server; never leaves the network.",
+     "kv": {"Image": "ghcr.io/huggingface/text-embeddings-inference:1.2", "Dim": "768"},
+     "chips": ["compose: embed", "CPU"], "src": "docker-compose.yml:70"},
+
+    {"id": "llm", "tier": "data", "name": "LLM · hosted", "tech": "claude-sonnet-5",
+     "shape": "model", "icon": "🤖", "external": true,
+     "role": "Answer synthesis and the grading guardrail. The only outbound AI dependency.",
+     "kv": {"Endpoint": "api.anthropic.com", "Key": "ANTHROPIC_API_KEY (env, not baked)"},
+     "chips": ["external", "outbound HTTPS 443"], "src": "api/ai/client.py:9"},
+
+    {"id": "rerank", "tier": "data", "name": "Reranker · TEI", "tech": "bge-reranker-base", "port": "8082",
+     "shape": "model", "icon": "🪜", "unused": true,
+     "role": "Deployed and healthy, but NOTHING calls it. Retrieval uses raw cosine top-k today.",
+     "kv": {"Image": "…text-embeddings-inference:1.2 (rerank mode)",
+            "Status": "provisioned, never imported anywhere in api/"},
+     "chips": ["unused", "candidate for the next retrieval upgrade"], "src": "docker-compose.yml:80"}
+  ],
+
+  "edges": [
+    {"from": "browser", "to": "web",    "label": "HTTPS", "kind": "sync"},
+    {"from": "web",     "to": "api",    "label": "/api proxy", "kind": "sync"},
+    {"from": "api",     "to": "db",     "label": "SQL", "kind": "sync"},
+    {"from": "api",     "to": "redis",  "label": "cache + enqueue", "kind": "async"},
+    {"from": "redis",   "to": "worker", "label": "consume", "kind": "async"},
+    {"from": "worker",  "to": "embed",  "label": "embed chunks", "kind": "sync"},
+    {"from": "worker",  "to": "qdrant", "label": "upsert vectors", "kind": "sync"},
+    {"from": "api",     "to": "embed",  "label": "embed query", "kind": "sync"},
+    {"from": "api",     "to": "qdrant", "label": "top-k search", "kind": "sync"},
+    {"from": "api",     "to": "llm",    "label": "answer + grade", "kind": "sync"},
+    {"from": "api",     "to": "rerank", "label": "never called", "kind": "inferred"}
+  ],
+  "flow_direction": "LR",
+
+  "lifecycle": [
+    "Browser loads the SPA from nginx (static build artifact, no SSR).",
+    "User signs in; the API issues an HS256 JWT with a 12h expiry (<code>api/auth/jwt.py:14</code>).",
+    "Every /api call carries the token; nginx proxies it through untouched.",
+    "A question hits <code>POST /api/ask</code>: the API embeds the query, searches Qdrant top-8, and calls the LLM.",
+    "The answer is graded by a second LLM call before it is returned; a failing grade sets <code>needs_review</code>.",
+    "Document uploads return immediately and are chunked + embedded by the Celery worker off the request path."
+  ],
+
+  "containers": [
+    {"service": "web",    "image": "nginx:1.25-alpine",  "port": "8080:80",   "depends": "api",       "restart": "unless-stopped", "src": "docker-compose.yml:12"},
+    {"service": "api",    "image": "acme/api:1.4",      "port": "8000",      "depends": "db, redis", "restart": "unless-stopped", "src": "docker-compose.yml:20"},
+    {"service": "worker", "image": "acme/api:1.4",      "port": "—",         "depends": "redis, qdrant, embed", "restart": "unless-stopped", "src": "docker-compose.yml:33"},
+    {"service": "db",     "image": "postgres:16",        "port": "5432",      "depends": "—",         "restart": "always", "src": "docker-compose.yml:41"},
+    {"service": "redis",  "image": "redis:7-alpine",     "port": "6379",      "depends": "—",         "restart": "always", "src": "docker-compose.yml:52"},
+    {"service": "qdrant", "image": "qdrant/qdrant:v1.9", "port": "6333",      "depends": "—",         "restart": "always", "src": "docker-compose.yml:60"},
+    {"service": "embed",  "image": "…text-embeddings-inference:1.2", "port": "8081", "depends": "—",  "restart": "always", "src": "docker-compose.yml:70"},
+    {"service": "rerank", "image": "…text-embeddings-inference:1.2", "port": "8082", "depends": "—",  "restart": "always", "src": "docker-compose.yml:80"}
+  ],
+
+  "storage": [
+    {"name": "pgdata",      "what": "All relational data + the audit log", "where": "volume → /var/lib/postgresql/data", "backup": "nightly <code>pg_dump</code>, 14-day retention", "src": "docker-compose.yml:44"},
+    {"name": "uploads",     "what": "Original uploaded PDFs",             "where": "volume → /srv/uploads",            "backup": "weekly tar to object storage",   "src": "docker-compose.yml:27"},
+    {"name": "qdrant_data", "what": "Chunk vectors + payloads",           "where": "volume → /qdrant/storage",          "backup": "not backed up — rebuildable from pgdata + uploads (~40 min)", "src": "docker-compose.yml:63"}
+  ],
+
+  "external": [
+    {"name": "Anthropic API", "what": "Answer synthesis + grading", "reached": "outbound HTTPS 443", "required": "yes — /api/ask 503s without it", "src": "api/ai/client.py:9"},
+    {"name": "Okta",          "what": "SSO / OIDC for staff",       "reached": "outbound HTTPS 443", "required": "only when AUTH_MODE=oidc",       "src": "api/auth/oidc.py:18"}
+  ],
+
+  "seeding": {
+    "schema_source": "restore",
+    "schema_note": "There is no <code>create_all</code> anywhere and the Alembic revisions are incremental patches, not table creations — so the schema <b>and</b> the first org + admin come from <code>db-backup.sql.gz</code>. Skipping the restore leaves you with an empty database the app cannot bootstrap out of.",
+    "steps": [
+      {"what": "Bring the data tier up first", "cmd": "docker compose up -d db redis qdrant embed"},
+      {"what": "Restore the dump — this creates the schema AND the first org/admin", "cmd": "gunzip -c db-backup.sql.gz | docker compose exec -T db psql -U acme acme"},
+      {"what": "Apply incremental migrations on top", "cmd": "docker compose run --rm api alembic upgrade head"},
+      {"what": "Seed reference data (prompt templates, lookup tables)", "cmd": "docker compose run --rm api python -m app.seed_reference"},
+      {"what": "Start the app tier", "cmd": "docker compose up -d api worker web"},
+      {"what": "Build the vector index from the restored documents", "cmd": "docker compose run --rm api python -m app.reindex --all"},
+      {"what": "Demo dataset — wipes tenant data first, dev only", "cmd": "python -m app.seed_demo --wipe", "danger": true}
+    ],
+    "backup": ["<code>pgdata</code> — the only irreplaceable volume", "<code>uploads</code> — source PDFs", "<code>qdrant_data</code> — optional, rebuildable in ~40 min via <code>app.reindex</code>"],
+    "tests": "pytest spins an isolated Postgres + an in-memory vector stub via testcontainers (<code>tests/conftest.py:22</code>); no test ever reaches the hosted LLM — the client is monkeypatched."
+  },
+
+  "security": [
+    "JWT HS256, 12h expiry, secret from <code>JWT_SECRET</code> env (<code>api/auth/jwt.py:14</code>).",
+    "CORS is <code>*</code> when <code>DEBUG=1</code> and the exact origin otherwise (<code>api/main.py:31</code>) — verify DEBUG is unset in production.",
+    "Uploads are extension- and magic-byte-checked, capped at 25 MB (<code>api/routes/upload.py:40</code>).",
+    "The LLM API key is read from env at process start and never logged (<code>api/ai/client.py:9</code>).",
+    "No PII redaction before text is sent to the hosted LLM — see the AI doc, section 'Context & data path'."
+  ],
+
+  "scaling": [
+    "4 uvicorn workers; the ceiling is the synchronous LLM call in <code>/api/ask</code> (p95 4.2s) — each in-flight question pins a worker.",
+    "Qdrant is single-node with no replication; losing the volume costs a ~40 min reindex, not data.",
+    "The embedding server is CPU-only and saturates around 12 concurrent chunk batches — the ingest queue is the natural backpressure point.",
+    "Redis has no persistence: a restart drops the cache and any queued-but-unstarted ingest jobs."
+  ],
+
+  "deploy": [
+    {"what": "Build the images", "cmd": "docker compose build"},
+    {"what": "Set the required env (see .env.example)", "cmd": "cp .env.example .env && $EDITOR .env"},
+    {"what": "Follow the seeding runbook above for a from-zero install", "cmd": ""},
+    {"what": "Start everything", "cmd": "docker compose up -d"},
+    {"what": "Verify", "cmd": "curl -fsS localhost:8080/api/health && docker compose ps"}
+  ],
+
+  "ai": {
+    "present": true,
+    "summary": "Two model surfaces: a retrieval-augmented answering path and a grading guardrail that gates every answer. Embeddings are self-hosted and never leave the network; answer synthesis and grading go to a hosted LLM. There is no fine-tuning, no training on user data, and no agentic tool use in the answering path.",
+
+    "workflows": [
+      {
+        "id": "ingest",
+        "name": "Document ingestion & indexing",
+        "kind": "rag",
+        "purpose": "Turn an uploaded PDF into searchable chunk vectors. Runs on the worker, off the request path — the upload endpoint returns as soon as the file is on disk.",
+        "trigger": "POST /api/documents → Celery task ingest_document (api/tasks/ingest.py:18)",
+        "model": "bge-base-en-v1.5 (self-hosted)",
+        "chips": ["async", "no LLM involved", "idempotent per document_id"],
+        "diagrams": [
+          {"title": "Index path — what happens once, per document",
+           "code": "flowchart LR\n  UP[\"Upload<br/><small>POST /api/documents</small>\"] --> ST[\"Store PDF<br/><small>uploads volume</small>\"]\n  ST --> Q[[\"Queue task<br/><small>redis: ingest</small>\"]]\n  Q --> EX[\"Extract text<br/><small>pdfplumber</small>\"]\n  EX --> CH[\"Chunk<br/><small>800 tok / 120 overlap</small>\"]\n  CH --> EM{{\"Embed<br/><small>bge-base, 768-d</small>\"}}\n  EM --> VS[(\"Upsert<br/><small>qdrant: doc_chunks</small>\")]\n  EX -.-> OCR[\"OCR fallback<br/><small>not implemented</small>\"]\n  classDef gap stroke-dasharray:3 4,opacity:.55\n  class OCR gap"}
+        ],
+        "nodes": {
+          "EX": {"nm": "Extract text", "role": "pdfplumber, text layer only — no OCR.",
+                 "kv": {"File": "api/ai/extract.py:12", "Fails_on": "scanned PDFs with no text layer",
+                        "On_failure": "document marked <code>unreadable</code>, no retry"},
+                 "chips": ["lossy", "known gap"]},
+          "CH": {"nm": "Chunk", "role": "Fixed-size token windows with overlap. No semantic boundary detection.",
+                 "kv": {"File": "api/ai/chunk.py:8", "Size": "800 tokens", "Overlap": "120 tokens",
+                        "Splitter": "tiktoken cl100k_base"},
+                 "chips": ["tunable via CHUNK_TOKENS"]},
+          "EM": {"nm": "Embed", "role": "Batched calls to the self-hosted TEI server.",
+                 "kv": {"File": "api/ai/embed.py:24", "Model": "bge-base-en-v1.5", "Dim": "768",
+                        "Batch": "32 chunks", "Leaves_the_network": "no"},
+                 "chips": ["self-hosted", "CPU"]},
+          "VS": {"nm": "Vector upsert", "role": "One point per chunk; payload carries document_id and page.",
+                 "kv": {"File": "api/ai/store.py:31", "Collection": "doc_chunks", "Distance": "cosine"},
+                 "chips": ["idempotent"]}
+        },
+        "io": {"label": "Contract", "Input": "One PDF ≤ 25 MB", "Output": "N chunk vectors in Qdrant + a row per chunk in Postgres",
+               "Latency": "~9s for a 40-page PDF (p50), dominated by embedding"},
+        "failure": [
+          "No text layer → document marked <code>unreadable</code>; the user sees it in the doc list, no retry (<code>api/tasks/ingest.py:61</code>).",
+          "Embedding server down → Celery retries 3× with 30s backoff, then the task dead-letters.",
+          "Partial failure leaves earlier chunks indexed — reindexing is idempotent, so re-running is safe."
+        ]
+      },
+      {
+        "id": "ask",
+        "name": "Question answering (RAG query path)",
+        "kind": "rag",
+        "purpose": "Answer a question from the indexed corpus. Synchronous — the user waits. This is the only path that sends document text to a hosted model.",
+        "trigger": "POST /api/ask (api/routes/ask.py:44)",
+        "model": "claude-sonnet-5",
+        "chips": ["synchronous", "p95 4.2s", "top-k = 8", "no reranking"],
+        "diagrams": [
+          {"title": "Query path",
+           "code": "flowchart LR\n  QU([\"Question\"]) --> QE{{\"Embed query<br/><small>bge-base</small>\"}}\n  QE --> SR[(\"Search top-8<br/><small>qdrant, cosine</small>\")]\n  SR --> AS[\"Assemble context<br/><small>8 chunks + system + history</small>\"]\n  AS --> LM{{\"Synthesise answer<br/><small>claude-sonnet-5</small>\"}}\n  LM --> GD{\"Grade<br/><small>guardrail call</small>\"}\n  GD -->|pass| OUT([\"Answer + citations\"])\n  GD -->|fail| RV([\"needs_review<br/><small>answer withheld</small>\"])\n  SR -.-> RR[\"Rerank<br/><small>deployed, never called</small>\"]\n  classDef gap stroke-dasharray:3 4,opacity:.55\n  class RR gap"},
+          {"title": "One real request, across the tiers",
+           "code": "sequenceDiagram\n  autonumber\n  participant B as Browser\n  participant A as API\n  participant E as Embed (local)\n  participant Q as Qdrant\n  participant L as LLM (hosted)\n  B->>A: POST /api/ask {question}\n  A->>E: embed(question)\n  E-->>A: 768-d vector\n  A->>Q: search top-8\n  Q-->>A: 8 chunks + scores\n  A->>L: synthesise(system + chunks + question)\n  L-->>A: answer + citations\n  A->>L: grade(answer, chunks)\n  L-->>A: {grounded: true, score: 0.91}\n  A-->>B: 200 {answer, citations, score}\n  Note over A,L: two LLM round-trips per question — the grade is not optional"}
+        ],
+        "nodes": {
+          "QE": {"nm": "Embed query", "role": "Same model as ingestion — a mismatch here silently destroys recall.",
+                 "kv": {"File": "api/ai/embed.py:24", "Model": "bge-base-en-v1.5"}, "chips": ["self-hosted"]},
+          "SR": {"nm": "Vector search", "role": "Plain cosine top-k. No hybrid search, no metadata filter beyond tenant.",
+                 "kv": {"File": "api/ai/retrieve.py:19", "k": "8", "Filter": "tenant_id only",
+                        "Score_floor": "none — 8 chunks always come back, however weak"},
+                 "chips": ["no reranking", "no score threshold"]},
+          "AS": {"nm": "Assemble context", "role": "Concatenates the chunks under a fixed system prompt. Truncates the oldest history first.",
+                 "kv": {"File": "api/ai/prompt.py:52", "Order": "system → history → chunks → question",
+                        "Overflow": "drop oldest history turns, then drop lowest-scoring chunks"},
+                 "chips": ["lossy under pressure"]},
+          "LM": {"nm": "Synthesise", "role": "One call, temperature 0.2, citations requested in the output schema.",
+                 "kv": {"File": "api/ai/answer.py:30", "Model": "claude-sonnet-5",
+                        "Temperature": "0.2", "Max_tokens": "1200", "Streaming": "no"},
+                 "chips": ["hosted", "the latency floor"]},
+          "GD": {"nm": "Grade (guardrail)", "role": "Second call: is the answer grounded in the retrieved chunks?",
+                 "kv": {"File": "api/ai/grade.py:22", "Temperature": "0", "Threshold": "0.7",
+                        "On_fail": "answer withheld, status <code>needs_review</code>"},
+                 "chips": ["blocking", "doubles the cost per question"]}
+        },
+        "io": {"label": "Contract", "Input": "question, conversation_id", "Output": "answer, citations[], grounding score",
+               "Latency": "p50 2.6s · p95 4.2s", "Failure_mode": "503 when the hosted LLM is unreachable — there is no local fallback model"},
+        "failure": [
+          "429 from the LLM → 3 retries, exponential backoff (<code>api/ai/client.py:60</code>).",
+          "Still failing → 503 to the caller. <b>No fallback model is configured</b>, so the answering path has a hard external dependency.",
+          "Grade below 0.7 → the answer is stored but not shown; it lands in the review queue.",
+          "Retrieval returning weak chunks is <i>not</i> an error — there is no score floor, so an off-topic question still produces 8 chunks and an answer, which the grader is the only thing catching."
+        ]
+      },
+      {
+        "id": "grade",
+        "name": "Grounding guardrail",
+        "kind": "guardrail",
+        "purpose": "The single check standing between a hallucinated answer and the user. Runs on every answer, synchronously, before the response is returned.",
+        "trigger": "called inline by the ask path (api/ai/grade.py:22)",
+        "model": "claude-sonnet-5",
+        "chips": ["temperature 0", "json schema output", "no human in the loop below 0.7"],
+        "diagrams": [
+          {"title": "Decision",
+           "code": "flowchart TD\n  IN([\"answer + retrieved chunks\"]) --> P[\"Grading prompt<br/><small>api/prompts/grade.md</small>\"]\n  P --> M{{\"claude-sonnet-5<br/><small>temp 0, json schema</small>\"}}\n  M --> S{\"score ≥ 0.7 ?\"}\n  S -->|yes| PASS([\"return to user\"])\n  S -->|no| HOLD([\"withhold · needs_review\"])\n  HOLD --> RQ[(\"review_queue<br/><small>postgres</small>\")]\n  M -.->|error or timeout| FAILOPEN([\"fail OPEN<br/><small>answer returned ungraded</small>\"])\n  classDef risk stroke-dasharray:3 4\n  class FAILOPEN risk"}
+        ],
+        "nodes": {
+          "M": {"nm": "Grader call", "role": "Structured output: {grounded: bool, score: float, unsupported_claims: []}.",
+                "kv": {"File": "api/ai/grade.py:22", "Prompt": "api/prompts/grade.md",
+                       "Temperature": "0", "Max_tokens": "400"},
+                "chips": ["deterministic-ish"]},
+          "FAILOPEN": {"nm": "Fail-open behaviour", "role": "If the grading call itself errors or times out, the answer is returned ungraded.",
+                       "kv": {"File": "api/ai/grade.py:71", "Logged_as": "grade_skipped",
+                              "Risk": "under an LLM outage the guardrail silently disappears while answers keep flowing"},
+                       "chips": ["design decision worth revisiting"]}
+        },
+        "failure": [
+          "Grader times out (8s) → <b>fail open</b>: the answer is returned ungraded and a <code>grade_skipped</code> event is logged (<code>api/ai/grade.py:71</code>).",
+          "Malformed JSON from the model → one retry, then fail open as above."
+        ]
+      }
+    ],
+
+    "prompts": [
+      {"name": "answer_system", "file": "api/prompts/answer.md", "purpose": "Sets the answering persona, citation format, and the refusal rule for unsupported questions", "vars": "tenant_name, today", "budget": "~640 tokens, static", "model": "claude-sonnet-5"},
+      {"name": "answer_user",   "file": "api/ai/prompt.py:52",   "purpose": "Assembles retrieved chunks + history + the question", "vars": "chunks[], history[], question", "budget": "chunks capped at 6k tokens; history dropped oldest-first", "model": "claude-sonnet-5"},
+      {"name": "grade",         "file": "api/prompts/grade.md",  "purpose": "Scores whether every claim in the answer is supported by the chunks", "vars": "answer, chunks[]", "budget": "~7k tokens (answer + the same chunks again)", "model": "claude-sonnet-5"}
+    ],
+
+    "models": [
+      {"name": "claude-sonnet-5",   "provider": "Anthropic (hosted)", "where": "answer synthesis, grading",  "params": "temp 0.2 / 0, max 1200 / 400", "src": "api/ai/client.py:9"},
+      {"name": "bge-base-en-v1.5",  "provider": "self-hosted (TEI)",  "where": "ingestion + query embedding", "params": "768-d, batch 32",             "src": "api/ai/embed.py:24"},
+      {"name": "bge-reranker-base", "provider": "self-hosted (TEI)",  "where": "<b>nowhere — deployed but never called</b>", "params": "—",           "src": "docker-compose.yml:80"}
+    ],
+
+    "context": {
+      "budget": "200k tokens available; ~10k actually used",
+      "composition": [
+        {"part": "System prompt", "tokens": 640},
+        {"part": "Conversation history", "tokens": 1200},
+        {"part": "Retrieved chunks (8)", "tokens": 6000},
+        {"part": "Question", "tokens": 60},
+        {"part": "Reserved for output", "tokens": 1200}
+      ],
+      "note": "The window is nowhere near full — the 8-chunk cap is a <i>retrieval</i> choice, not a context limit. Raising k is cheap in tokens and would mostly cost latency and grading cost.",
+      "leaves_the_box": "Retrieved chunk text, conversation history and the question go to Anthropic. Embeddings never leave the network. <b>There is no PII redaction step</b> — whatever is in the source documents is what gets sent.",
+      "retention": "Anthropic API standard terms; no training on API inputs. The app itself stores every prompt and completion in <code>ai_calls</code> for audit (<code>api/ai/client.py:88</code>) — that table is the real PII exposure and is not currently redacted or expired."
+    },
+
+    "cost": [
+      {"what": "One question (answer call)", "math": "~7.9k in + 0.5k out", "estimate": "≈ $0.031"},
+      {"what": "One question (grading call)", "math": "~7.0k in + 0.2k out", "estimate": "≈ $0.024"},
+      {"what": "Per question, total", "math": "answer + mandatory grade", "estimate": "<b>≈ $0.055</b> — the guardrail is ~45% of spend"},
+      {"what": "Ingesting a 40-page PDF", "math": "~90 chunks × local embedding", "estimate": "$0 (self-hosted)"}
+    ],
+
+    "state_of_play": [
+      {"claim": "Every answer is graded before the user sees it", "status": "wired", "evidence": "api/routes/ask.py:44 → api/ai/grade.py:22"},
+      {"claim": "Embeddings are computed locally and never leave the network", "status": "wired", "evidence": "api/ai/embed.py:24 targets http://embed:8081"},
+      {"claim": "A reranker is deployed for retrieval quality", "status": "provisioned-unused", "evidence": "docker-compose.yml:80 — no import of it anywhere under api/"},
+      {"claim": "The answering path degrades gracefully when the LLM is down", "status": "inferred", "evidence": "no fallback model in api/ai/client.py; /api/ask 503s — this is the observed behaviour, not a documented design"},
+      {"claim": "Scanned PDFs are supported via OCR", "status": "planned", "evidence": "no OCR dependency in requirements.txt; api/tasks/ingest.py:61 marks them unreadable"}
+    ]
+  }
+}
