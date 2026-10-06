@@ -13,3 +13,4 @@ screenshots/
 # Fetched on first build by scripts/vendor_mermaid.py (pinned version, sha256-checked). Not
 # committed: the plugin directories reject minified bundles they can't review.
 skills/interactive-docs/assets/mermaid.min.js
+skills/interactive-docs/assets/html2canvas.min.js

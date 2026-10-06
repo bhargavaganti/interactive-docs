@@ -43,28 +43,38 @@ def fetch(url):
         return r.read()
 
 
-def vendor(force=False):
-    if cached() and not force:
-        print("mermaid already vendored: %s (%d KB)" % (DEST, os.path.getsize(DEST) // 1024))
-        return DEST
-    os.makedirs(ASSETS, exist_ok=True)
+def fetch_pinned(dest, sha256, urls, label):
+    """Download `dest` from the first mirror whose bytes match `sha256`. Returns dest or None.
+
+    Shared by every third-party bundle this skill uses (mermaid here, html2canvas in
+    shot_server.py): nothing minified is shipped, and nothing unverified is ever run.
+    """
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
     last = None
-    for url in SOURCES:
+    for url in urls:
         try:
             print("fetching %s …" % url)
             blob = fetch(url)
             digest = hashlib.sha256(blob).hexdigest()
-            if digest != SHA256:
+            if digest != sha256:
                 raise ValueError("sha256 mismatch (got %s…) — refusing to use it" % digest[:16])
-            with open(DEST, "wb") as f:
+            with open(dest, "wb") as f:
                 f.write(blob)
-            print("vendored mermaid %s -> %s  %d KB  (sha256 verified)"
-                  % (VERSION, DEST, len(blob) // 1024))
-            return DEST
+            print("vendored %s -> %s  %d KB  (sha256 verified)" % (label, dest, len(blob) // 1024))
+            return dest
         except Exception as e:  # try the next mirror
             last = e
             print("  ! %s" % e)
-    print("\nCould not vendor mermaid: %s" % last, file=sys.stderr)
+    print("\nCould not vendor %s: %s" % (label, last), file=sys.stderr)
+    return None
+
+
+def vendor(force=False):
+    if cached() and not force:
+        print("mermaid already vendored: %s (%d KB)" % (DEST, os.path.getsize(DEST) // 1024))
+        return DEST
+    if fetch_pinned(DEST, SHA256, SOURCES, "mermaid " + VERSION):
+        return DEST
     print("Options:\n"
           "  • run build_arch.py with --mermaid none (hand-built HTML diagrams instead)\n"
           "  • download mermaid.min.js manually and drop it at %s" % DEST, file=sys.stderr)

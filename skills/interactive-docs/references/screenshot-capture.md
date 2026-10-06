@@ -11,11 +11,13 @@ python3 scripts/shot_server.py docs/screenshots 8899   # dir + port
 ```
 
 ## 2. In the app page (a browser you control), install a capture helper
-Run this once per full page load (it resets on navigation). It loads html2canvas from CDN — if
-the page's CSP blocks CDNs, bundle html2canvas locally and eval it the same way.
+Run this once per full page load (it resets on navigation). It loads html2canvas from the local
+receiver, which serves a pinned, hash-checked copy — nothing is pulled from a CDN at capture time.
+If the page's CSP blocks `127.0.0.1` scripts, fall back to the browser tool's own screenshots.
 ```js
 (async()=>{
-  if(!window.html2canvas){const r=await fetch('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');(0,eval)(await r.text());}
+  if(!window.html2canvas){await new Promise((ok,err)=>{const s=document.createElement('script');
+    s.src='http://127.0.0.1:8899/html2canvas.js';s.onload=ok;s.onerror=err;document.head.appendChild(s);});}
   window.__shot = async (name)=>{
     const c = await html2canvas(document.body,{scale:1,useCORS:true,backgroundColor:'#ffffff',
       x:scrollX,y:scrollY,width:innerWidth,height:innerHeight,
