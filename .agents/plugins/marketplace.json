@@ -1,0 +1,12 @@
+{
+  "name": "bhargavaganti",
+  "interface": { "displayName": "Bhargava Ganti" },
+  "plugins": [
+    {
+      "name": "interactive-docs",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
+      "category": "Developer Tools"
+    }
+  ]
+}

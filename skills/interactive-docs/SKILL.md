@@ -33,6 +33,10 @@ before claiming done.**
 
 ## Bundled
 
+All paths below are relative to **this skill's folder** (the directory containing this
+`SKILL.md`), not the project being documented — run the scripts by their full path, e.g.
+`python3 <skill-dir>/scripts/build_arch.py arch.json`, from the project root.
+
 | Path | What |
 |---|---|
 | `references/discovery.md` | **Start here.** How to read any codebase: classify it, inventory infra, detect the AI surface, build the honesty ledger. |
@@ -46,7 +50,7 @@ before claiming done.**
 | `scripts/build_guide.py` | `guide.json` + evidence → the interactive guide (`--flat` = print edition). |
 | `scripts/shot_server.py` · `scripts/export_doc.py` | Screenshot receiver · PDF/DOCX export. |
 | `examples/sample-arch.json` | A worked `arch.json` using every supported field. |
-| `scripts/install.sh` | Installs/refreshes this skill into every agent CLI found (Claude Code, Codex). |
+| `scripts/install.sh` · `scripts/install.ps1` | Installs/refreshes this skill for every agent CLI found (Claude Code, Codex) — bash / Windows PowerShell. |
 
 ---
 
@@ -61,7 +65,7 @@ something is *deployed*, never that it is *used*. Confirm each edge at its call 
 unconfirmed is marked `inferred` or `provisioned-unused` — never quietly promoted to fact.
 
 ```bash
-python3 scripts/vendor_mermaid.py     # once per machine
+python3 scripts/vendor_mermaid.py     # only if assets/mermaid.min.js is missing
 ```
 
 ---

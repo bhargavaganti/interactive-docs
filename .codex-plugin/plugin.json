@@ -1,0 +1,24 @@
+{
+  "name": "interactive-docs",
+  "version": "1.0.0",
+  "description": "Interactive, self-contained HTML docs for any project: infrastructure topology, AI/LLM workflow diagrams and an evidence-backed user guide, exportable to PDF and Word.",
+  "author": { "name": "Bhargava Ganti", "url": "https://github.com/bhargavaganti" },
+  "homepage": "https://github.com/bhargavaganti/interactive-docs",
+  "repository": "https://github.com/bhargavaganti/interactive-docs",
+  "license": "MIT",
+  "keywords": ["documentation", "architecture", "diagrams", "mermaid", "llm", "rag", "user-guide"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Interactive Docs",
+    "shortDescription": "Infra, AI-workflow and user-guide docs for any project",
+    "longDescription": "Reads your codebase and builds up to three single-file, offline, theme-aware HTML docs: a clickable deployment/infrastructure doc with a seeding runbook, an AI workflows doc with a mermaid diagram of every model call, and an interactive user guide backed by real screenshots or transcripts. All export to PDF and Word.",
+    "developerName": "Bhargava Ganti",
+    "category": "Developer Tools",
+    "websiteURL": "https://github.com/bhargavaganti/interactive-docs",
+    "defaultPrompt": [
+      "Build an interactive architecture doc for this repo",
+      "Diagram every AI/LLM call in this project",
+      "Make an interactive user guide for this app"
+    ]
+  }
+}

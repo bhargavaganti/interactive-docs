@@ -15,7 +15,7 @@ DOCX ← `pandoc` (embeds the base64 images). If pandoc is missing it prints ins
 Every backend is optional; the script reports what it used and what to install if none
 are available.
 """
-import argparse, os, shutil, subprocess, sys, tempfile, atexit
+import argparse, os, pathlib, shutil, subprocess, sys, tempfile, atexit
 
 _TEMPS = []
 
@@ -30,7 +30,17 @@ def _cleanup():
 
 
 def _run(cmd):
-    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # explicit utf-8: Windows would otherwise decode Chrome's --dump-dom with the ANSI codepage
+    try:
+        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                              encoding="utf-8", errors="replace")
+    except OSError as e:  # on PATH but not runnable (wrong arch, no exec bit) — report, don't crash
+        return subprocess.CompletedProcess(cmd, 1, stdout=f"{cmd[0]}: {e}")
+
+
+def _file_url(path):
+    # "file://" + abspath gives file://C:\x on Windows, which Chrome rejects; as_uri() is portable
+    return pathlib.Path(path).resolve().as_uri()
 
 
 def find_chrome():
@@ -45,6 +55,14 @@ def find_chrome():
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
         "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    ] + [  # Windows: browsers install outside PATH
+        os.path.join(base, *rel)
+        for base in filter(None, (os.environ.get("PROGRAMFILES"), os.environ.get("PROGRAMFILES(X86)"),
+                                  os.environ.get("LOCALAPPDATA")))
+        for rel in (("Google", "Chrome", "Application", "chrome.exe"),
+                    ("Microsoft", "Edge", "Application", "msedge.exe"),
+                    ("BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+                    ("Chromium", "Application", "chrome.exe"))
     ]:
         if os.path.exists(p):
             return p
@@ -52,15 +70,15 @@ def find_chrome():
 
 
 def to_pdf(html, out):
-    src = "file://" + os.path.abspath(html)
+    src = _file_url(html)
     chrome = find_chrome()
     if chrome:
         r = _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox",
-                  "--no-pdf-header-footer", f"--print-to-pdf={out}", src])
+                  "--no-pdf-header-footer", f"--print-to-pdf={os.path.abspath(out)}", src])
         if os.path.exists(out) and os.path.getsize(out) > 0:
             return "chrome"
         r = _run([chrome, "--headless", "--disable-gpu", "--no-sandbox",
-                  f"--print-to-pdf={out}", src])  # older flag form
+                  f"--print-to-pdf={os.path.abspath(out)}", src])  # older flag form
         if os.path.exists(out) and os.path.getsize(out) > 0:
             return "chrome(legacy)"
         sys.stderr.write((r.stdout or "")[-400:] + "\n")
@@ -98,7 +116,7 @@ def snapshot(html):
                          "  the .docx will contain the text but NOT the diagrams.\n")
         return html
     r = _run([chrome, "--headless", "--disable-gpu", "--no-sandbox",
-              "--virtual-time-budget=15000", "--dump-dom", "file://" + os.path.abspath(html)])
+              "--virtual-time-budget=15000", "--dump-dom", _file_url(html)])
     dom = r.stdout or ""
     if "<svg" not in dom:
         sys.stderr.write("! could not bake the diagrams (none rendered); exporting without them.\n")
@@ -141,4 +159,4 @@ if __name__ == "__main__":
         print(f"PDF  : {'OK via ' + used + ' -> ' + pdf if used else 'FAILED — install Chrome/Chromium, or weasyprint / wkhtmltopdf'}")
     if docx:
         used = to_docx(a.html, docx)
-        print(f"DOCX : {'OK via ' + used + ' -> ' + docx if used else 'FAILED — install pandoc (brew install pandoc / apt install pandoc)'}")
+        print(f"DOCX : {'OK via ' + used + ' -> ' + docx if used else 'FAILED — install pandoc (brew / apt / winget install pandoc)'}")

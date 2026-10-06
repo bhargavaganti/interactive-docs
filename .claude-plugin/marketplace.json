@@ -1,0 +1,16 @@
+{
+  "name": "bhargavaganti",
+  "description": "Agent skills by Bhargava Ganti.",
+  "owner": {
+    "name": "Bhargava Ganti",
+    "url": "https://github.com/bhargavaganti"
+  },
+  "plugins": [
+    {
+      "name": "interactive-docs",
+      "source": "./",
+      "description": "Interactive infra, AI-workflow and usage docs for any project.",
+      "version": "1.0.0"
+    }
+  ]
+}
