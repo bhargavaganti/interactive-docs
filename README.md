@@ -99,7 +99,7 @@ guide has no bundled sample because it is built from real captures of a running 
 ## Repository layout
 
 ```
-.claude-plugin/          plugin.json + marketplace.json + icon.png   (Claude Code)
+.claude-plugin/          plugin.json + marketplace.json   (Claude Code)
 .codex-plugin/           plugin.json                      (Codex)
 .agents/plugins/         marketplace.json                 (Codex)
 skills/interactive-docs/ the skill itself — the only part either agent loads

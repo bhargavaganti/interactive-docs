@@ -55,10 +55,10 @@ def find_chrome():
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
         "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-    ] + [  # Windows: browsers install outside PATH
+    ] + [  # Windows: browsers install outside PATH, under these default roots
         os.path.join(base, *rel)
-        for base in filter(None, (os.environ.get("PROGRAMFILES"), os.environ.get("PROGRAMFILES(X86)"),
-                                  os.environ.get("LOCALAPPDATA")))
+        for base in (r"C:\Program Files", r"C:\Program Files (x86)",
+                     os.path.join(os.path.expanduser("~"), "AppData", "Local"))
         for rel in (("Google", "Chrome", "Application", "chrome.exe"),
                     ("Microsoft", "Edge", "Application", "msedge.exe"),
                     ("BraveSoftware", "Brave-Browser", "Application", "brave.exe"),

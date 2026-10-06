@@ -12,7 +12,7 @@
 set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NAME="$(basename "$SRC")"
-CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+CODEX_HOME="$HOME/.codex"   # Codex default home
 #        agent        home dir         skills dir
 AGENTS=("Claude Code|$HOME/.claude|$HOME/.claude/skills"
         "Codex|$CODEX_HOME|$HOME/.agents/skills")

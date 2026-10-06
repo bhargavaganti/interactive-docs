@@ -11,7 +11,7 @@ param([switch]$Link, [switch]$List)
 $ErrorActionPreference = 'Stop'
 $Src  = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $Name = Split-Path $Src -Leaf
-$CodexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+$CodexHome = Join-Path $HOME '.codex'   # Codex default home
 $Agents = @(
   @{ Label = 'Claude Code'; Home = (Join-Path $HOME '.claude'); Dir = (Join-Path $HOME '.claude\skills') },
   @{ Label = 'Codex';       Home = $CodexHome;                  Dir = (Join-Path $HOME '.agents\skills') }

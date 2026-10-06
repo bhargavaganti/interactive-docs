@@ -10,7 +10,7 @@
       "name": "interactive-docs",
       "source": "./",
       "description": "Interactive infra, AI-workflow and usage docs for any project.",
-      "version": "1.0.2"
+      "version": "1.0.3"
     }
   ]
 }
