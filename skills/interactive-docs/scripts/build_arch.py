@@ -104,7 +104,7 @@ Write only what you VERIFIED in the codebase. `src` fields are `path/to/file.py:
   }
 }
 """
-import os, re, json, argparse, html as _html
+import os, re, sys, json, argparse, html as _html
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MERMAID = os.path.abspath(os.path.join(HERE, "..", "assets", "mermaid.min.js"))
@@ -765,10 +765,18 @@ if __name__ == "__main__":
 
     spec = json.load(open(args.spec, encoding="utf-8"))
     mode = args.mermaid
-    if mode == "inline" and not os.path.exists(MERMAID):
-        print("! assets/mermaid.min.js not found — run `python3 scripts/vendor_mermaid.py`.\n"
-              "  Falling back to --mermaid none (diagram source shown as code blocks).")
-        mode = "none"
+    if mode in ("inline", "link") and not os.path.exists(MERMAID):
+        # first use: fetch the pinned, hash-checked bundle (vendor_mermaid exits on failure)
+        sys.path.insert(0, HERE)
+        import vendor_mermaid
+        try:
+            vendor_mermaid.vendor()
+        except SystemExit:
+            pass
+        if not os.path.exists(MERMAID):
+            print("! assets/mermaid.min.js unavailable (offline?).\n"
+                  "  Falling back to --mermaid none (diagram source shown as code blocks).")
+            mode = "none"
 
     if args.doc in ("infra", "both"):
         out = args.out if (args.out and args.doc == "infra") else \

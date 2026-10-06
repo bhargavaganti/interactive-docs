@@ -62,9 +62,12 @@ The request/response pair *is* the screenshot. Capture it with the real service 
 
 ```bash
 curl -sS -X POST localhost:8000/api/ask \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Content-Type: application/json' \
   -d '{"question":"…"}' | tee resp.json | python3 -m json.tool
 ```
+
+- Protected endpoints: ask the user to run the call themselves with their own test credentials
+  and paste the response, rather than reading a token from the environment or config.
 
 - One `code` block for the request, one for the response, `title` carrying method, path and status.
 - Show real ids and timestamps from the actual call, but **redact tokens and personal data**.

@@ -10,6 +10,6 @@ USER_GUIDE_INTERACTIVE.html
 .snapshot-*.html
 screenshots/
 
-# NOTE: assets/mermaid.min.js is deliberately NOT ignored — committing it (~3.4 MB) is what
-# lets the built docs render offline without a network fetch on first use. Ignore it instead
-# if you would rather keep the repo small and require `scripts/vendor_mermaid.py` after clone.
+# Fetched on first build by scripts/vendor_mermaid.py (pinned version, sha256-checked). Not
+# committed: the plugin directories reject minified bundles they can't review.
+skills/interactive-docs/assets/mermaid.min.js

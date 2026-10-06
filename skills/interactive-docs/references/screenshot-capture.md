@@ -85,15 +85,15 @@ Then, on each screen: `await window.__shot('01-login')`, `await window.__shot('0
   capturable form. Otherwise a `spec`/text card is fine and often reads better.
 
 - **A UI state that only exists from saved server state? Seed it via the API, don't fight the UI.**
-  For example a "resume where you left off?" prompt that needs prior progress: `PUT` the progress
-  row through the app's own endpoint with a valid token, then reload so the component mounts and
-  reads it. Far more reliable than clicking through to build the state, and it uses the app's real
-  data path.
+  For example a "resume where you left off?" prompt that needs prior progress: create the progress
+  row with the project's own seed/fixture script (or ask the user to), then reload so the component
+  mounts and reads it. Far more reliable than clicking through to build the state, and it uses the
+  app's real data path.
 
-- **Auth without typing credentials.** Mint a token server-side and seed
-  `localStorage['access_token']` **plus** any cached permissions blob (e.g. `user_permissions=["*"]`)
-  so the app takes its no-API fast path; then navigate straight to a protected route — landing on
-  `/login` can wipe the token. Re-seed after any bounce. Never type real credentials into a form.
+- **Signed-in screens: let the user sign in.** Never read, mint or copy tokens, cookies or stored
+  sessions yourself, and never type real credentials. Ask the user to sign in (in the browser you
+  are driving) with a test account from the project's seed data, then capture. If the app bounces
+  to `/login` mid-run, pause and ask them to sign in again.
 
 - **Overlay sidebars fly out over content at narrow widths.** Capture dashboards at ≥1024px so the
   menu is a fixed column beside the content rather than covering it.

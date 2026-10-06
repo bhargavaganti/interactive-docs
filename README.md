@@ -73,8 +73,10 @@ removes an old copy from `~/.codex/skills`, which Codex still reads and would ot
 | Word export | [`pandoc`](https://pandoc.org/installing.html) (plus a browser to bake diagrams in) | macOS · Linux · Windows |
 | Screenshot evidence | A browser the agent can drive (for web apps) | n/a |
 
-The mermaid bundle (`assets/mermaid.min.js`) is committed, so diagrams render offline straight
-after cloning. `scripts/vendor_mermaid.py` re-downloads it only if you delete or want to update it.
+Diagrams use [mermaid](https://mermaid.js.org), which is not shipped in the repo: the first
+`build_arch.py` run downloads a pinned version (SHA-256 checked) into `assets/` and inlines it,
+so every built doc still opens fully offline. With no network it falls back to plain diagram
+source. Run `scripts/vendor_mermaid.py` to fetch it ahead of time.
 
 ## Usage
 
@@ -97,7 +99,7 @@ guide has no bundled sample because it is built from real captures of a running 
 ## Repository layout
 
 ```
-.claude-plugin/          plugin.json + marketplace.json   (Claude Code)
+.claude-plugin/          plugin.json + marketplace.json + icon.png   (Claude Code)
 .codex-plugin/           plugin.json                      (Codex)
 .agents/plugins/         marketplace.json                 (Codex)
 skills/interactive-docs/ the skill itself — the only part either agent loads
@@ -116,9 +118,8 @@ skills/interactive-docs/ the skill itself — the only part either agent loads
 | `scripts/build_guide.py` | `guide.json` + evidence → the interactive guide (`--flat` for print/export). |
 | `scripts/export_doc.py` | Exports any of these docs to PDF and Word (.docx). |
 | `scripts/shot_server.py` | Local receiver that saves browser screenshots to files. |
-| `scripts/vendor_mermaid.py` | Re-downloads the mermaid bundle into `assets/`. |
+| `scripts/vendor_mermaid.py` | Downloads the pinned, hash-checked mermaid bundle into `assets/` (automatic on first build). |
 | `scripts/install.sh` · `scripts/install.ps1` | Installers for Claude Code + Codex (bash / PowerShell). |
-| `assets/mermaid.min.js` | The vendored mermaid bundle, inlined into built docs. |
 | `examples/sample-arch.json` | A worked `arch.json` covering every supported field. |
 
 ## The quality bar (baked into SKILL.md)

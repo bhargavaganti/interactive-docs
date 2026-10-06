@@ -1,12 +1,23 @@
 {
   "name": "interactive-docs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Interactive, self-contained HTML docs for any project: infrastructure topology, AI/LLM workflow diagrams and an evidence-backed user guide, exportable to PDF and Word.",
-  "author": { "name": "Bhargava Ganti", "url": "https://github.com/bhargavaganti" },
+  "author": {
+    "name": "Bhargava Ganti",
+    "url": "https://github.com/bhargavaganti"
+  },
   "homepage": "https://github.com/bhargavaganti/interactive-docs",
   "repository": "https://github.com/bhargavaganti/interactive-docs",
   "license": "MIT",
-  "keywords": ["documentation", "architecture", "diagrams", "mermaid", "llm", "rag", "user-guide"],
+  "keywords": [
+    "documentation",
+    "architecture",
+    "diagrams",
+    "mermaid",
+    "llm",
+    "rag",
+    "user-guide"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Interactive Docs",
@@ -19,6 +30,8 @@
       "Build an interactive architecture doc for this repo",
       "Diagram every AI/LLM call in this project",
       "Make an interactive user guide for this app"
-    ]
+    ],
+    "logo": "./.claude-plugin/icon.png",
+    "composerIcon": "./.claude-plugin/icon.png"
   }
 }

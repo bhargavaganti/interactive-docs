@@ -46,7 +46,7 @@ All paths below are relative to **this skill's folder** (the directory containin
 | `references/screenshot-capture.md` | The browser html2canvas recipe + every gotcha. |
 | `references/capture-nonweb.md` | Terminal, simulator and request/response evidence capture. |
 | `scripts/build_arch.py` | `arch.json` → the infra doc **and** the AI doc. |
-| `scripts/vendor_mermaid.py` | Caches the mermaid bundle once, so docs stay offline. |
+| `scripts/vendor_mermaid.py` | Fetches the pinned, hash-checked mermaid bundle (automatic on first build). |
 | `scripts/build_guide.py` | `guide.json` + evidence → the interactive guide (`--flat` = print edition). |
 | `scripts/shot_server.py` · `scripts/export_doc.py` | Screenshot receiver · PDF/DOCX export. |
 | `examples/sample-arch.json` | A worked `arch.json` using every supported field. |
@@ -65,7 +65,7 @@ something is *deployed*, never that it is *used*. Confirm each edge at its call 
 unconfirmed is marked `inferred` or `provisioned-unused` — never quietly promoted to fact.
 
 ```bash
-python3 scripts/vendor_mermaid.py     # only if assets/mermaid.min.js is missing
+python3 scripts/vendor_mermaid.py     # optional: build_arch.py fetches it on first use
 ```
 
 ---

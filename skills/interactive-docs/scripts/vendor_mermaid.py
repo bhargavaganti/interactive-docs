@@ -8,7 +8,9 @@
 Why vendor at all: the docs this skill builds are single self-contained HTML files that
 must open with no network. Mermaid therefore has to be *inlined*, which means we need a
 local copy of the library. We fetch it once into `assets/mermaid.min.js` and reuse it for
-every project forever after.
+every project forever after. The bundle is not shipped with the skill (minified code can't be
+reviewed); instead an exact version is pinned and its SHA-256 checked, so every mirror must
+serve byte-identical code. `build_arch.py` calls this automatically on first use.
 
 If this can't run (no network, locked-down box), that is not fatal: `build_arch.py`
 falls back to its own hand-built HTML/CSS node diagrams. See `--mermaid none`.
@@ -20,10 +22,12 @@ ASSETS = os.path.abspath(os.path.join(HERE, "..", "assets"))
 DEST = os.path.join(ASSETS, "mermaid.min.js")
 
 # UMD build: defines window.mermaid, no module loader needed, works from file://
+# To upgrade: change VERSION, download once, and paste the new file's `shasum -a 256` here.
+VERSION = "11.16.1"
+SHA256 = "18327bef70d96fb505fe7287d9f6a7362ebf07ff6576ddfaffb1a06f3e1a2954"
 SOURCES = [
-    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js",
-    "https://unpkg.com/mermaid@11/dist/mermaid.min.js",
-    "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
+    "https://cdn.jsdelivr.net/npm/mermaid@%s/dist/mermaid.min.js" % VERSION,
+    "https://unpkg.com/mermaid@%s/dist/mermaid.min.js" % VERSION,
 ]
 MIN_BYTES = 400_000  # a real mermaid bundle is megabytes; anything small is an error page
 
@@ -49,14 +53,13 @@ def vendor(force=False):
         try:
             print("fetching %s …" % url)
             blob = fetch(url)
-            if len(blob) < MIN_BYTES:
-                raise ValueError("suspiciously small (%d bytes) — probably not the bundle" % len(blob))
-            if b"mermaid" not in blob[:200_000]:
-                raise ValueError("payload does not look like mermaid")
+            digest = hashlib.sha256(blob).hexdigest()
+            if digest != SHA256:
+                raise ValueError("sha256 mismatch (got %s…) — refusing to use it" % digest[:16])
             with open(DEST, "wb") as f:
                 f.write(blob)
-            print("vendored %s  %d KB  sha256=%s"
-                  % (DEST, len(blob) // 1024, hashlib.sha256(blob).hexdigest()[:16]))
+            print("vendored mermaid %s -> %s  %d KB  (sha256 verified)"
+                  % (VERSION, DEST, len(blob) // 1024))
             return DEST
         except Exception as e:  # try the next mirror
             last = e

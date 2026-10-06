@@ -59,5 +59,5 @@ if ((Test-Path $CodexHome) -and (Test-Path $Legacy)) {
   "removed   old Codex copy: $Legacy (now in ~/.agents/skills)"
 }
 if (-not (Test-Path (Join-Path $Src 'assets\mermaid.min.js'))) {
-  '! run scripts\vendor_mermaid.py so diagrams render offline'
+  '  (mermaid is fetched on first build; run scripts\vendor_mermaid.py to prefetch)'
 }

@@ -47,4 +47,4 @@ done
 if [[ -d "$CODEX_HOME" && ( -e "$LEGACY" || -L "$LEGACY" ) ]]; then
   rm -rf "$LEGACY"; echo "removed   old Codex copy: $LEGACY (now in ~/.agents/skills)"
 fi
-[[ -f "$SRC/assets/mermaid.min.js" ]] || echo "! run scripts/vendor_mermaid.py so diagrams render offline"
+[[ -f "$SRC/assets/mermaid.min.js" ]] || echo "  (mermaid is fetched on first build; run scripts/vendor_mermaid.py to prefetch)"
